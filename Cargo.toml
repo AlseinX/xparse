@@ -1,0 +1,21 @@
+[package]
+name = "xparse"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["macros"]
+macros = ["dep:xparse-macros"]
+async = ["futures-core", "xparse-macros?/async"]
+
+[dependencies]
+xparse-macros = { path = "macros", optional = true }
+
+thiserror-no-std = "2.0"
+futures-core = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+
+[workspace]
+members = []
