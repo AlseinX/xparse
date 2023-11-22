@@ -1,4 +1,4 @@
-# XParser
+# XParse
 
 A parser combinator that is fully statically dispatched and supports both sync & async parsing.
 
