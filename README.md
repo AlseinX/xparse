@@ -4,7 +4,7 @@ A parser combinator that is fully statically dispatched and supports both sync &
 
 ## How to use
 
-An example of a very simple JSON parser is provided as a test.
+[An example](https://github.com/AlseinX/xparse/blob/slaveholder/src/json.rs) of a very simple JSON parser is provided as a test.
 
 ## License
 
