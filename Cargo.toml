@@ -1,6 +1,11 @@
 [package]
 name = "xparse"
-version = "0.1.0"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+readme.workspace = true
+repository.workspace = true
+homepage.workspace = true
 edition = "2021"
 
 [features]
@@ -9,7 +14,7 @@ macros = ["dep:xparse-macros"]
 async = ["futures-core", "xparse-macros?/async"]
 
 [dependencies]
-xparse-macros = { path = "macros", optional = true }
+xparse-macros = { path = "macros", version = "0.1.0", optional = true }
 
 thiserror-no-std = "2.0"
 futures-core = { version = "0.3", optional = true }
@@ -19,3 +24,12 @@ tokio = { version = "1", features = ["full"] }
 
 [workspace]
 members = []
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Alsein Xiang <xyh951115@live.com>"]
+description = "A parser combinator that is fully statically dispatched and supports both sync & async parsing."
+readme = "README.md"
+repository = "https://github.com/AlseinX/xparse"
+homepage = "https://github.com/AlseinX/xparse"

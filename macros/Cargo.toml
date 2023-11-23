@@ -1,6 +1,11 @@
 [package]
 name = "xparse-macros"
-version = "0.1.0"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+readme.workspace = true
+repository.workspace = true
+homepage.workspace = true
 edition = "2021"
 
 [lib]
