@@ -6,6 +6,7 @@ description.workspace = true
 readme.workspace = true
 repository.workspace = true
 homepage.workspace = true
+license-file.workspace = true
 edition = "2021"
 
 [features]
@@ -34,3 +35,4 @@ description = "A parser combinator that is fully statically dispatched and suppo
 readme = "README.md"
 repository = "https://github.com/AlseinX/xparse"
 homepage = "https://github.com/AlseinX/xparse"
+license-file = "LICENSE"

@@ -6,6 +6,7 @@ description.workspace = true
 readme.workspace = true
 repository.workspace = true
 homepage.workspace = true
+license-file.workspace = true
 edition = "2021"
 
 [lib]
