@@ -10,6 +10,7 @@ edition = "2021"
 
 [features]
 default = ["macros"]
+full = ["async", "macros"]
 macros = ["dep:xparse-macros"]
 async = ["futures-core", "xparse-macros?/async"]
 
