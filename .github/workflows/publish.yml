@@ -1,0 +1,41 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  bump-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Toolchain
+        run: rustup toolchain uninstall stable && rustup toolchain install beta -c rustfmt,clippy && rustup override set beta
+
+      - name: Bump version
+        uses: tj-actions/cargo-bump@v2
+
+      - name: Run cargo fmt
+        run: cargo fmt --check --verbose
+
+      - name: Run cargo clippy
+        run: cargo clippy --verbose --features full
+
+      - name: Run tests
+        run: cargo test --verbose --features full
+
+      - name: Publish
+        id: publish-crates
+        uses: katyo/publish-crates@v2
+        with:
+          dry-run: true
+
+      - name: Publish Result
+        if: fromJSON(steps.publish-crates.outputs.published).*
+        run: |
+          LIST="${{ join(fromJSON(steps.publish-crates.outputs.published).*.name, ', ') }}"
+          echo "Published crates: $LIST"

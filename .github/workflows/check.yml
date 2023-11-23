@@ -1,0 +1,32 @@
+name: Check
+
+on:
+  push:
+    branches:
+      - slaveholder
+  pull_request:
+    branches:
+      - slaveholder
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Toolchain
+        run: rustup toolchain uninstall stable && rustup toolchain install beta -c rustfmt,clippy && rustup override set beta
+
+      - name: Run cargo fmt
+        run: cargo fmt --check --verbose
+
+      - name: Run cargo clippy
+        run: cargo clippy --verbose --features full
+
+      - name: Run tests
+        run: cargo test --verbose --features full

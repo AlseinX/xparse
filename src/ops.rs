@@ -184,6 +184,7 @@ impl<I, O, T: ParseImpl<I, Output = O>> ParseImpl<I> for Never<T> {
     impl_parse!(parse, _await, |__: I| Err(Error::Mismatch));
 }
 
+#[allow(clippy::type_complexity)]
 pub struct And<
     T0 = NoOp,
     T1 = NoOp,
@@ -271,6 +272,7 @@ impl<
     });
 }
 
+#[allow(clippy::type_complexity)]
 pub struct Or<
     T0 = Never<NoOp>,
     T1 = Never<T0>,

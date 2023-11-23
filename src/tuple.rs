@@ -8,6 +8,7 @@ macro_rules! impl_tuples {
         impl<$($l,)*$($r),*> Concat<($($r,)*)> for ($($l,)*) {
             type Output = ($($l,)*$($r,)*);
             #[allow(non_snake_case)]
+            #[allow(clippy::unused_unit)]
             #[inline(always)]
             fn concat(self, ($($r,)*): ($($r,)*)) -> Self::Output {
                 let ($($l,)*) = self;

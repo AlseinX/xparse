@@ -174,7 +174,7 @@ impl<T: SourceImpl> Source for SourceRef<'_, T> {
     #[inline(always)]
     fn fork(&mut self) -> impl Source<Item = Self::Item> {
         SourceRef {
-            target: &mut self.target,
+            target: self.target,
             offset: self.offset,
             parent: Some(&mut self.offset),
         }
@@ -191,7 +191,7 @@ impl<T: AsyncSourceImpl> AsyncSource for SourceRef<'_, T> {
     #[inline(always)]
     fn fork(&mut self) -> impl AsyncSource<Item = Self::Item> {
         SourceRef {
-            target: &mut self.target,
+            target: self.target,
             offset: self.offset,
             parent: Some(&mut self.offset),
         }
