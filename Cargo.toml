@@ -16,7 +16,7 @@ macros = ["dep:xparse-macros"]
 async = ["futures-core", "xparse-macros?/async"]
 
 [dependencies]
-xparse-macros = { path = "macros", version = "0.1.0", optional = true }
+xparse-macros = { path = "macros", optional = true }
 
 thiserror-no-std = "2.0"
 futures-core = { version = "0.3", optional = true }
