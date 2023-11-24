@@ -486,12 +486,30 @@ pub struct Expected<T, N>(PhantomData<(T, N)>);
 impl<I, T: ParseImpl<I>, N: Const<Type = &'static str>> ParseImpl<I> for Expected<T, N> {
     type Output = T::Output;
     impl_parse!(parse, _await, |input: I| parse!(T, input).map_err(|e| {
-        if let Error::Mismatch = e {
-            HardError::Incomplete {
+        match e {
+            Error::Mismatch => HardError::Incomplete {
                 position: input.position(),
                 name: N::VALUE,
             }
-            .into()
+            .into(),
+            Error::NamedMismatch(component_name) => HardError::NamedIncomplete {
+                position: input.position(),
+                name: N::VALUE,
+                component_name,
+            }
+            .into(),
+            _ => e,
+        }
+    }));
+}
+
+pub struct Name<T, N>(PhantomData<(T, N)>);
+
+impl<I, T: ParseImpl<I>, N: Const<Type = &'static str>> ParseImpl<I> for Name<T, N> {
+    type Output = T::Output;
+    impl_parse!(parse, _await, |input: I| parse!(T, input).map_err(|e| {
+        if let Error::Mismatch = e {
+            Error::NamedMismatch(N::VALUE)
         } else {
             e
         }

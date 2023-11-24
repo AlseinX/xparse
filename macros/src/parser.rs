@@ -2,13 +2,14 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
+    parse2,
     punctuated::Punctuated,
     spanned::Spanned,
     token::Paren,
-    AngleBracketedGenericArguments, AssocType, ConstParam, Expr, ExprPath, GenericArgument,
-    GenericParam, Generics, ItemType, LifetimeParam, Path, PathArguments, PathSegment,
-    PredicateType, Result, Token, TraitBound, TraitBoundModifier, Type, TypeParam, TypeParamBound,
-    TypePath, TypeTuple, WherePredicate,
+    AngleBracketedGenericArguments, AssocType, ConstParam, Expr, ExprLit, ExprPath,
+    GenericArgument, GenericParam, Generics, ItemType, LifetimeParam, Lit, LitStr, MacroDelimiter,
+    Meta, MetaList, Path, PathArguments, PathSegment, PredicateType, Result, Token, TraitBound,
+    TraitBoundModifier, Type, TypeParam, TypeParamBound, TypePath, TypeTuple, WherePredicate,
 };
 
 use crate::exprs::handle_exprs;
@@ -29,16 +30,70 @@ impl Parse for Rec {
 
 pub fn handle(
     ItemType {
-        attrs,
+        mut attrs,
         vis,
         ident,
         mut generics,
-        mut ty,
+        ty,
         semi_token,
         ..
     }: ItemType,
     rec: Rec,
 ) -> Result<TokenStream> {
+    let mut ty = if let Some((name, i)) = attrs.iter().enumerate().find_map(|(i, attr)| match &attr
+        .meta
+    {
+        Meta::Path(path) if path.is_ident("name") => {
+            Some((LitStr::new(ident.to_string().as_str(), path.span()), i))
+        }
+        Meta::List(MetaList {
+            path,
+            delimiter: MacroDelimiter::Paren(..),
+            tokens,
+        }) if path.is_ident("name") => parse2(tokens.clone())
+            .map(|x: Ident| LitStr::new(x.to_string().as_str(), x.span()))
+            .or_else(|_| parse2(tokens.clone()))
+            .ok()
+            .map(|name| (name, i)),
+        _ => None,
+    }) {
+        attrs.remove(i);
+        let span = ty.span().resolved_at(Span::mixed_site());
+        Type::Path(TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: Some(Token![::](span)),
+                segments: Punctuated::from_iter(
+                    ["xparse", "ops"]
+                        .iter()
+                        .map(|x| PathSegment {
+                            ident: Ident::new(x, span),
+                            arguments: PathArguments::None,
+                        })
+                        .chain([PathSegment {
+                            ident: Ident::new("Name", span),
+                            arguments: PathArguments::AngleBracketed(
+                                AngleBracketedGenericArguments {
+                                    colon2_token: None,
+                                    lt_token: Token![<](span),
+                                    args: Punctuated::from_iter([
+                                        GenericArgument::Type(*ty),
+                                        GenericArgument::Const(Expr::Lit(ExprLit {
+                                            attrs: Default::default(),
+                                            lit: Lit::Str(name),
+                                        })),
+                                    ]),
+                                    gt_token: Token![>](span),
+                                },
+                            ),
+                        }]),
+                ),
+            },
+        })
+    } else {
+        *ty
+    };
+
     let expr_defs = handle_exprs(&ident, &mut ty)?;
     let span = generics.span().resolved_at(Span::mixed_site());
     let struct_generics = generics.clone();

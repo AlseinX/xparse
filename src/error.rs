@@ -10,6 +10,9 @@ pub enum Error {
     #[error("mismatch")]
     Mismatch,
 
+    #[error("mismatching {0}")]
+    NamedMismatch(&'static str),
+
     #[error(transparent)]
     Hard(HardError),
 }
@@ -18,6 +21,13 @@ pub enum Error {
 pub enum HardError {
     #[error("incomplete {name} at {position}")]
     Incomplete { position: usize, name: &'static str },
+
+    #[error("incomplete {name} at {position}, expecting {component_name}")]
+    NamedIncomplete {
+        position: usize,
+        name: &'static str,
+        component_name: &'static str,
+    },
 
     #[error(transparent)]
     Other(#[from] Box<dyn DynError + Send>),

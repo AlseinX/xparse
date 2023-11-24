@@ -17,7 +17,7 @@ jobs:
         run: rustup toolchain uninstall stable && rustup toolchain install beta -c rustfmt,clippy && rustup override set beta
 
       - name: Bump version
-        run: cargo install vproj && vproj ${GITHUB_REF##*/}
+        run: 'cargo install vproj && vproj ${GITHUB_REF##*/} && git add . && git -c user.name="AlseinX" -c user.email="xyh951115@live.com" commit -am "chore: bump release version ${GITHUB_REF##*/}"'
 
       - name: Run cargo fmt
         run: cargo fmt --check --verbose
@@ -32,7 +32,7 @@ jobs:
         id: publish-crates
         uses: katyo/publish-crates@v2
         with:
-          dry-run: true
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish Result
         if: fromJSON(steps.publish-crates.outputs.published).*

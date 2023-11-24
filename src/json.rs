@@ -33,6 +33,7 @@ type RBrace = A<b'}'>;
 #[parser]
 type Colomn = A<b':'>;
 #[parser]
+#[name]
 type Comma = A<b','>;
 #[parser]
 type Quote = A<b'"'>;
@@ -48,6 +49,7 @@ type Spaces = Discard<Repeat<AnyOf<b" \r\n\t">>>;
 type Integer = TryMap<Repeat<Digit, 1>, StringMapper>;
 
 #[parser]
+#[name]
 type Number = TryMap<
     And<Integer, Optional<And<Discard<Point>, Integer>>>,
     {
@@ -67,12 +69,14 @@ type Number = TryMap<
 >;
 
 #[parser]
+#[name]
 type Bool = Or<
     Map<Seq<{ b"true" as &'static [u8] }>, { |_: Vec<u8>| -> Value { Value::Bool(true) } }>,
     Map<Seq<{ b"false" as &'static [u8] }>, { |_: Vec<u8>| -> Value { Value::Bool(false) } }>,
 >;
 
 #[parser]
+#[name(String)]
 type PRawString = TryMap<
     Or<
         And<Discard<Quote>, Repeat<Not<Quote>>, Discard<Quote>>,
@@ -94,6 +98,7 @@ type StringMapper = Define<
 type PString = Map<PRawString, { |v: String| -> Value { Value::String(v) } }>;
 
 #[parser]
+#[name]
 type Object = Map<
     And<
         Discard<LBrace>,
@@ -117,6 +122,7 @@ type Object = Map<
 >;
 
 #[parser]
+#[name]
 type Array = Map<
     And<
         Discard<LBracket>,
@@ -129,6 +135,7 @@ type Array = Map<
 >;
 
 #[parser(u8, Value)]
+#[name(Value)]
 type PValue = And<Spaces, Or<Object, Array, PString, Number, Bool>, Spaces>;
 
 const SOURCE: &str = r#"
