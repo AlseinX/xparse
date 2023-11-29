@@ -6,7 +6,7 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Paren,
-    AngleBracketedGenericArguments, AssocType, ConstParam, Expr, ExprLit, ExprPath,
+    AngleBracketedGenericArguments, AssocType, ConstParam, Error, Expr, ExprLit, ExprPath,
     GenericArgument, GenericParam, Generics, ItemType, LifetimeParam, Lit, LitStr, MacroDelimiter,
     Meta, MetaList, Path, PathArguments, PathSegment, PredicateType, Result, Token, TraitBound,
     TraitBoundModifier, Type, TypeParam, TypeParamBound, TypePath, TypeTuple, WherePredicate,
@@ -14,17 +14,58 @@ use syn::{
 
 use crate::exprs::handle_exprs;
 
-pub struct Rec(Option<(Type, Type)>);
+pub struct Args {
+    rec: Option<(Type, Type)>,
+    arg: Option<Type>,
+}
 
-impl Parse for Rec {
+impl Parse for Args {
     fn parse(i: ParseStream) -> Result<Self> {
         if i.is_empty() {
-            return Ok(Self(None));
+            return Ok(Self {
+                rec: None,
+                arg: None,
+            });
         }
-        let input = i.parse()?;
-        let _: Token![,] = i.parse()?;
-        let output = i.parse()?;
-        Ok(Self(Some((input, output))))
+        let span = i.span();
+        let g = i.parse_terminated(GenericArgument::parse, Token![,])?;
+        let mut input = None;
+        let mut output = None;
+        let mut arg = None;
+        'args: for a in g {
+            match a {
+                GenericArgument::Type(t) => {
+                    for slot in [&mut input, &mut output, &mut arg] {
+                        if slot.is_some() {
+                            continue;
+                        }
+                        *slot = Some(t);
+                        continue 'args;
+                    }
+                    return Err(Error::new(t.span(), "too many arguments"));
+                }
+                GenericArgument::AssocType(AssocType {
+                    ident,
+                    generics: None,
+                    ty,
+                    ..
+                }) => {
+                    *match ident.to_string().as_str() {
+                        "input" => &mut input,
+                        "output" => &mut output,
+                        "arg" => &mut arg,
+                        _ => return Err(Error::new(span, "unexpected argument")),
+                    } = Some(ty)
+                }
+                _ => return Err(Error::new(span, "unexpected argument")),
+            }
+        }
+        let rec = match (input, output) {
+            (None, None) => None,
+            (Some(input), Some(output)) => Some((input, output)),
+            _ => return Err(Error::new(span, "must specify both input and output")),
+        };
+        Ok(Self { rec, arg })
     }
 }
 
@@ -38,7 +79,7 @@ pub fn handle(
         semi_token,
         ..
     }: ItemType,
-    rec: Rec,
+    input_args: Args,
 ) -> Result<TokenStream> {
     let mut ty = if let Some((name, i)) = attrs.iter().enumerate().find_map(|(i, attr)| match &attr
         .meta
@@ -104,7 +145,30 @@ pub fn handle(
         (None, None)
     };
 
-    let (input, output) = if let Rec(Some((input, output))) = rec {
+    let arg = if let Some(arg) = input_args.arg {
+        arg
+    } else {
+        let arg = Ident::new("__Arg", span);
+        let at = ident_to_type(arg.clone());
+        generics.lt_token.get_or_insert_with(|| Token![<](span));
+        generics.gt_token.get_or_insert_with(|| Token![>](span));
+        generics.params.push(GenericParam::Type(TypeParam {
+            attrs: Default::default(),
+            ident: arg,
+            colon_token: Some(Token![:](span)),
+            bounds: Punctuated::from_iter([TypeParamBound::Trait(TraitBound {
+                paren_token: None,
+                modifier: TraitBoundModifier::None,
+                lifetimes: None,
+                path: Ident::new("Clone", span).into(),
+            })]),
+            eq_token: Default::default(),
+            default: Default::default(),
+        }));
+        at
+    };
+
+    let (input, output) = if let Some((input, output)) = input_args.rec {
         (
             input,
             Type::Tuple(TypeTuple {
@@ -113,8 +177,8 @@ pub fn handle(
             }),
         )
     } else {
-        let input = Ident::new("Input", span);
-        let output = Ident::new("Output", span);
+        let input = Ident::new("__Input", span);
+        let output = Ident::new("__Output", span);
         let it = ident_to_type(input.clone());
         let ot = ident_to_type(output.clone());
         generics.lt_token.get_or_insert_with(|| Token![<](span));
@@ -124,7 +188,7 @@ pub fn handle(
         generics
             .make_where_clause()
             .predicates
-            .push(where_ty_impls_parse_impl(&ty, &it, &ot, span));
+            .push(where_ty_impls_parse_impl(&ty, &it, &ot, &arg, span));
         (it, ot)
     };
 
@@ -135,10 +199,14 @@ pub fn handle(
         where_clause,
     } = &generics;
 
+    let s = Ident::new("__Source", Span::mixed_site());
+    let i = Ident::new("__Input", Span::mixed_site());
+    let a = Ident::new("__Arg", Span::mixed_site());
+
     let f = quote! {
         #[inline(always)]
-        fn parse<S: ::xparse::Source<Item = #input>>(input: &mut S) -> Result<Self::Output> {
-            <#ty as ::xparse::parse::ParseImpl<#input>>::parse(input)
+        fn parse<#s: ::xparse::Source<Item = #input>>(input: &mut #s, arg: #arg) -> Result<Self::Output> {
+            <#ty as ::xparse::parse::ParseImpl<#input, #arg>>::parse(input, arg)
         }
     };
 
@@ -146,42 +214,48 @@ pub fn handle(
     let f = quote! {
         #f
         #[inline(always)]
-        async fn parse_async<S: ::xparse::AsyncSource<Item = #input>>(input: &mut S) -> Result<Self::Output> {
-            Box::pin(<#ty as ::xparse::parse::ParseImpl<#input>>::parse_async(input)).await
+        async fn parse_async<S: ::xparse::AsyncSource<Item = #input>>(input: &mut S, arg: #arg) -> Result<Self::Output> {
+            Box::pin(<#ty as ::xparse::parse::ParseImpl<#input, #arg>>::parse_async(input, arg)).await
         }
     };
 
     Ok(quote! {
         #expr_defs
         #(#attrs)* #vis struct #ident #struct_generics #semi_token
-        impl #lt_token #params #gt_token ::xparse::parse::ParseImpl<#input> for #ident #args_lt #args #args_rt #where_clause {
+        impl #lt_token #params #gt_token ::xparse::parse::ParseImpl<#input, #arg> for #ident #args_lt #args #args_rt #where_clause {
             type Output = #output;
             #f
         }
-        impl<I> ::xparse::ops::Predicate<I> for #ident
+        impl<#i, #a> ::xparse::ops::Predicate<#i, #a> for #ident
         where
-            #ty: ::xparse::ops::Predicate<I>
+            #ty: ::xparse::ops::Predicate<#i, #a>
         {
             #[inline(always)]
-            fn is(v: &I) -> bool {
-                <#ty as ::xparse::ops::Predicate<I>>::is(v)
+            fn is(v: &#i, arg: #a) -> bool {
+                <#ty as ::xparse::ops::Predicate<#i, #a>>::is(v, arg)
             }
         }
 
-        impl<T> ::xparse::ops::Mapper<T> for #ident
+        impl<#i> ::xparse::ops::Mapper<#i> for #ident
         where
-            #ty: ::xparse::ops::Mapper<T>
+            #ty: ::xparse::ops::Mapper<#i>
         {
-            type Output = <#ty as ::xparse::ops::Mapper<T>>::Output;
+            type Output = <#ty as ::xparse::ops::Mapper<#i>>::Output;
             #[inline(always)]
-            fn map(v: T) -> Self::Output {
-                <#ty as ::xparse::ops::Mapper<T>>::map(v)
+            fn map(v: #i) -> Self::Output {
+                <#ty as ::xparse::ops::Mapper<#i>>::map(v)
             }
         }
     })
 }
 
-fn where_ty_impls_parse_impl(ty: &Type, it: &Type, ot: &Type, span: Span) -> WherePredicate {
+fn where_ty_impls_parse_impl(
+    ty: &Type,
+    it: &Type,
+    ot: &Type,
+    at: &Type,
+    span: Span,
+) -> WherePredicate {
     WherePredicate::Type(PredicateType {
         lifetimes: None,
         bounded_ty: ty.clone(),
@@ -207,6 +281,7 @@ fn where_ty_impls_parse_impl(ty: &Type, it: &Type, ot: &Type, span: Span) -> Whe
                                     lt_token: Token![<](span),
                                     args: Punctuated::from_iter([
                                         GenericArgument::Type(it.clone()),
+                                        GenericArgument::Type(at.clone()),
                                         GenericArgument::AssocType(AssocType {
                                             ident: Ident::new("Output", span),
                                             generics: None,

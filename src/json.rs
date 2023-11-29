@@ -53,7 +53,7 @@ type Integer = TryMap<Repeat<Digit, 1>, StringMapper>;
 type Number = TryMap<
     And<Integer, Optional<And<Discard<Point>, Integer>>>,
     {
-        |int: String, frac: Option<String>| -> Result<Value> {
+        fn map(int: String, frac: Option<String>) -> Result<Value> {
             let int = if let Some(frac) = frac {
                 format!("{int}.{frac}")
             } else {
@@ -71,8 +71,22 @@ type Number = TryMap<
 #[parser]
 #[name]
 type Bool = Or<
-    Map<Seq<{ b"true" as &'static [u8] }>, { |_: Vec<u8>| -> Value { Value::Bool(true) } }>,
-    Map<Seq<{ b"false" as &'static [u8] }>, { |_: Vec<u8>| -> Value { Value::Bool(false) } }>,
+    Map<
+        Seq<{ b"true" as &'static [u8] }>,
+        {
+            fn map(_: Vec<u8>) -> Value {
+                Value::Bool(true)
+            }
+        },
+    >,
+    Map<
+        Seq<{ b"false" as &'static [u8] }>,
+        {
+            fn map(_: Vec<u8>) -> Value {
+                Value::Bool(false)
+            }
+        },
+    >,
 >;
 
 #[parser]
@@ -88,14 +102,21 @@ type PRawString = TryMap<
 #[parser]
 type StringMapper = Define<
     {
-        |v: Vec<u8>| -> Result<String> {
+        fn map(v: Vec<u8>) -> Result<String> {
             Ok(String::from_utf8(v).map_err(|x| Box::new(x) as Box<dyn DynError + Send>)?)
         }
     },
 >;
 
 #[parser]
-type PString = Map<PRawString, { |v: String| -> Value { Value::String(v) } }>;
+type PString = Map<
+    PRawString,
+    {
+        fn map(v: String) -> Value {
+            Value::String(v)
+        }
+    },
+>;
 
 #[parser]
 #[name]
@@ -107,7 +128,11 @@ type Object = Map<
                 Punctuated<
                     Map<
                         And<Spaces, PRawString, Spaces, Discard<Colomn>, PValue>,
-                        { |k: String, v: Value| -> (String, Value) { (k, v) } },
+                        {
+                            fn map(k: String, v: Value) -> (String, Value) {
+                                (k, v)
+                            }
+                        },
                     >,
                     Comma,
                 >,
@@ -118,7 +143,11 @@ type Object = Map<
             "Object",
         >,
     >,
-    { |v: Vec<(String, Value)>, _: Vec<u8>| -> Value { Value::Object(HashMap::from_iter(v)) } },
+    {
+        fn map(v: Vec<(String, Value)>, _: Vec<u8>) -> Value {
+            Value::Object(HashMap::from_iter(v))
+        }
+    },
 >;
 
 #[parser]
@@ -131,7 +160,11 @@ type Array = Map<
             "Array",
         >,
     >,
-    { |v: Vec<Value>, _: Vec<u8>| -> Value { Value::Array(v) } },
+    {
+        fn map(v: Vec<Value>, _: Vec<u8>) -> Value {
+            Value::Array(v)
+        }
+    },
 >;
 
 #[parser(u8, Value)]

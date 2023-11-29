@@ -4,9 +4,14 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     visit_mut::{self, VisitMut},
-    Block, Error, Expr, ExprBlock, ExprCast, ExprClosure, ExprLit, ExprTuple, GenericArgument,
-    Ident, Lit, Pat, PatType, Path, PathSegment, Result, ReturnType, Stmt, Type, TypePath,
+    Block, Expr, ExprBlock, GenericArgument, Ident, Item, Path, PathSegment, Result, Stmt, Type,
+    TypePath,
 };
+
+use self::{r#const::handle_const, r#fn::handle_fn};
+
+mod r#const;
+mod r#fn;
 
 pub fn handle_exprs(ident: &Ident, input: &mut Type) -> Result<TokenStream> {
     let mod_id = Ident::new(
@@ -46,17 +51,21 @@ impl VisitMut for ExprVisitor {
         let Ok(output) = &mut self.output else {
             return;
         };
+
         if let GenericArgument::Const(c) = i {
-            let c = std::mem::replace(
-                c,
-                Expr::Tuple(ExprTuple {
-                    attrs: Default::default(),
-                    paren_token: Default::default(),
-                    elems: Default::default(),
-                }),
-            );
-            match handle_expr(c, &self.mod_id, &mut self.current, output) {
-                Ok(arg) => *i = arg,
+            match handle_expr(c, &mut self.current, output) {
+                Ok(Some(ty_id)) => {
+                    *i = GenericArgument::Type(Type::Path(TypePath {
+                        qself: None,
+                        path: Path {
+                            leading_colon: None,
+                            segments: Punctuated::from_iter(
+                                [self.mod_id.clone(), ty_id].map(PathSegment::from),
+                            ),
+                        },
+                    }))
+                }
+                Ok(None) => {}
                 Err(e) => {
                     self.output = Err(e);
                     return;
@@ -68,178 +77,43 @@ impl VisitMut for ExprVisitor {
 }
 
 fn handle_expr(
-    expr: Expr,
-    mod_id: &Ident,
+    c: &mut Expr,
     current: &mut usize,
     output: &mut TokenStream,
-) -> Result<GenericArgument> {
+) -> Result<Option<Ident>> {
     let ty_id = Ident::new(
         format!("Expr{current}__").as_str(),
-        expr.span().resolved_at(Span::mixed_site()),
+        c.span().resolved_at(Span::mixed_site()),
     );
-    *current += 1;
 
-    let span = expr.span();
-
-    'def: {
-        match expr {
-            Expr::Lit(ExprLit {
-                lit: Lit::Str(s), ..
-            }) => {
-                output.extend(quote! {
-                    pub(super) struct #ty_id;
-                    impl ::xparse::ops::Const for #ty_id {
-                        type Type = &'static str;
-                        const VALUE: Self::Type = #s;
-                    }
-                });
-                break 'def;
-            }
-            Expr::Lit(ExprLit {
-                lit: Lit::ByteStr(s),
-                ..
-            }) => {
-                output.extend(quote! {
-                    pub(super) struct #ty_id;
-                    impl ::xparse::ops::Const for #ty_id {
-                        type Type = &'static [u8];
-                        const VALUE: Self::Type = #s;
-                    }
-                });
-                break 'def;
-            }
-            Expr::Lit(ExprLit {
-                lit: Lit::Char(c), ..
-            }) => {
-                output.extend(quote! {
-                    pub(super) struct #ty_id;
-                    impl ::xparse::ops::Const for #ty_id {
-                        type Type = char;
-                        const VALUE: Self::Type = #c;
-                    }
-                });
-                break 'def;
-            }
-            Expr::Lit(ExprLit {
-                lit: Lit::Byte(c), ..
-            }) => {
-                output.extend(quote! {
-                    pub(super) struct #ty_id;
-                    impl ::xparse::ops::Const for #ty_id {
-                        type Type = u8;
-                        const VALUE: Self::Type = #c;
-                    }
-                });
-                break 'def;
-            }
-            _ => (),
+    'handle: {
+        if let Some(i) = handle_const(c, &ty_id) {
+            output.extend(quote! {
+                pub(super) struct #ty_id;
+                #i
+            });
+            break 'handle;
         }
 
-        let Expr::Block(ExprBlock {
+        if let Expr::Block(ExprBlock {
             block: Block { stmts, .. },
             ..
-        }) = expr
-        else {
-            return Ok(GenericArgument::Const(expr));
-        };
-
-        let stmts = match <[_; 1]>::try_from(stmts) {
-            Ok(
-                [Stmt::Expr(
-                    Expr::Closure(ExprClosure {
-                        attrs,
-                        lifetimes,
-                        constness,
-                        movability,
-                        asyncness,
-                        capture,
-                        inputs,
-                        output: rtn_ty,
-                        body,
-                        ..
-                    }),
-                    None,
-                )],
-            ) => {
-                let mut pt = Vec::with_capacity(inputs.len());
-                let mut pv = Vec::with_capacity(inputs.len());
-                for input in inputs {
-                    let Pat::Type(PatType { attrs, pat, ty, .. }) = input else {
-                        return Err(Error::new(input.span(), "need explicit type annotation"));
-                    };
-
-                    if let Some(f) = attrs.first() {
-                        return Err(Error::new(f.span(), "attributes are not supported here"));
-                    }
-
-                    pt.push(ty);
-                    pv.push(pat);
-                }
-
-                let ReturnType::Type(.., rtn_ty) = rtn_ty else {
-                    return Err(Error::new(rtn_ty.span(), "need explicit return type"));
-                };
-
-                let lifetimes = lifetimes.map(|x| x.lifetimes).into_iter();
-
-                let (None, None, None, None) = (constness, movability, asyncness, capture) else {
-                    return Err(Error::new(constness.span(), "modifiers not supported here"));
-                };
-
-                let body = if let Expr::Block(ExprBlock {
-                    block: Block { stmts, .. },
-                    ..
-                }) = body.as_ref()
-                {
-                    quote!(#(#stmts)*)
-                } else {
-                    quote!(body)
-                };
+        }) = c
+        {
+            if let [Stmt::Item(Item::Fn(f))] = stmts.as_mut_slice() {
+                let i = handle_fn(f, &ty_id)?;
 
                 output.extend(quote! {
                     pub(super) struct #ty_id;
-                    impl #(<#lifetimes>)* ::xparse::ops::Mapper<(#(#pt,)*)> for #ty_id {
-                        type Output = #rtn_ty;
-                        #(#attrs)*
-                        #[inline]
-                        fn map((#(#pv,)*): (#(#pt,)*)) -> Self::Output {
-                            #body
-                        }
-                    }
+                    #i
                 });
-                break 'def;
+                break 'handle;
             }
-            Ok([stmt]) => vec![stmt],
-            Err(stmts) => stmts,
-        };
+        }
 
-        let Some(Stmt::Expr(Expr::Cast(ExprCast { ty: rtn_ty, .. }), None)) = stmts.last() else {
-            return Err(Error::new(
-                span,
-                "must return with `as` explicit type annotation",
-            ));
-        };
-
-        let value = if let [Stmt::Expr(expr, None)] = stmts.as_slice() {
-            quote!(#expr)
-        } else {
-            quote!({#(#stmts)*})
-        };
-
-        output.extend(quote! {
-            pub(super) struct #ty_id;
-            impl ::xparse::ops::Const for #ty_id {
-                type Type = #rtn_ty;
-                const VALUE: Self::Type = #value;
-            }
-        });
+        return Ok(None);
     }
 
-    Ok(GenericArgument::Type(Type::Path(TypePath {
-        qself: None,
-        path: Path {
-            leading_colon: None,
-            segments: Punctuated::from_iter([mod_id.clone(), ty_id].map(PathSegment::from)),
-        },
-    })))
+    *current += 1;
+    Ok(Some(ty_id))
 }
