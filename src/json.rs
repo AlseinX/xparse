@@ -1,11 +1,11 @@
 use std::collections::HashMap;
-use xparse_macros::parser;
 
 use crate::{
     ops::{
         And, AnyOf, Define, Discard, Expected, Map, Not, Optional, Or, Punctuated, Repeat, Seq,
         TryMap, A,
     },
+    parser,
     source::from_slice,
     DynError, Parse, Result,
 };

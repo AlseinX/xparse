@@ -188,6 +188,14 @@ impl<I, A, T: Default> ParseImpl<I, A> for NoOp<T> {
     impl_parse!(parse, _await, |__: I, _arg: A| Ok(T::default()));
 }
 
+impl<T> Mapper<(T,)> for NoOp {
+    type Output = T;
+    #[inline(always)]
+    fn map((v,): (T,)) -> Self::Output {
+        v
+    }
+}
+
 impl<I, O, T: ParseImpl<I, A, Output = O>, A> ParseImpl<I, A> for Never<T> {
     type Output = O;
     impl_parse!(parse, _await, |__: I, _arg: A| Err(Error::Mismatch));
@@ -492,9 +500,11 @@ impl<
     });
 }
 
-pub struct Map<P, M>(PhantomData<(P, M)>);
+pub struct Map<P, M = NoOp>(PhantomData<(P, M)>);
 
 pub struct TryMap<P, M>(PhantomData<(P, M)>);
+
+pub struct IsMap<P, M>(PhantomData<(P, M)>);
 
 impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, Output = U>, T, U, A> ParseImpl<I, A>
     for Map<P, M>
@@ -512,6 +522,16 @@ impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, Output = Result<U>>, T, U, 
     impl_parse!(parse, _await, |input: I, arg: A| Ok((M::map(parse!(
         P, input, arg
     )?)?,)));
+}
+
+impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, Output = Option<U>>, T, U, A> ParseImpl<I, A>
+    for IsMap<P, M>
+{
+    type Output = (U,);
+    impl_parse!(parse, _await, |input: I, arg: A| Ok((M::map(parse!(
+        P, input, arg
+    )?)
+    .ok_or(Error::Mismatch)?,)));
 }
 
 pub struct Expected<T, N>(PhantomData<(T, N)>);
@@ -551,11 +571,11 @@ impl<I, T: ParseImpl<I, A>, N: Const<Type = &'static str>, A> ParseImpl<I, A> fo
         }));
 }
 
-pub struct ArgOut;
+pub struct ArgOut<M = NoOp>(PhantomData<M>);
 
-impl<I, A> ParseImpl<I, A> for ArgOut {
-    type Output = (A,);
-    impl_parse!(parse, _await, |_input: I, arg: A| Ok((arg,)));
+impl<I, A, M: Mapper<(A,), Output = O>, O> ParseImpl<I, A> for ArgOut<M> {
+    type Output = (O,);
+    impl_parse!(parse, _await, |_input: I, arg: A| Ok((M::map((arg,)),)));
 }
 
 #[allow(clippy::type_complexity)]
@@ -645,5 +665,31 @@ impl<
         let r = arg;
         impl_chain!(r, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15);
         Ok((r,))
+    });
+}
+
+pub struct Peek<T>(PhantomData<T>);
+
+impl<T: ParseImpl<I, A>, I, A> ParseImpl<I, A> for Peek<T> {
+    type Output = T::Output;
+    impl_parse!(parse, _await, |input: I, arg: A| parse!(
+        T,
+        &mut input.fork(),
+        arg
+    ));
+}
+
+pub struct AndWithArg<T0 = NoOp, T1 = NoOp>(PhantomData<(T0, T1)>);
+
+impl<I, T0: ParseImpl<I, A0, Output = (A1,)>, T1: ParseImpl<I, A1>, A0, A1: Clone> ParseImpl<I, A0>
+    for AndWithArg<T0, T1>
+where
+    (A1,): Concat<T1::Output>,
+{
+    type Output = <(A1,) as Concat<T1::Output>>::Output;
+
+    impl_parse!(parse, _await, |input: I, arg: A0| {
+        let r = parse!(T0, input, arg)?;
+        Ok(r.clone().concat(parse!(T1, input, r.0)?))
     });
 }
