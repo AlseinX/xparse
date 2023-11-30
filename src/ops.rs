@@ -219,6 +219,22 @@ pub struct And<
     T13 = NoOp,
     T14 = NoOp,
     T15 = NoOp,
+    T16 = NoOp,
+    T17 = NoOp,
+    T18 = NoOp,
+    T19 = NoOp,
+    T20 = NoOp,
+    T21 = NoOp,
+    T22 = NoOp,
+    T23 = NoOp,
+    T24 = NoOp,
+    T25 = NoOp,
+    T26 = NoOp,
+    T27 = NoOp,
+    T28 = NoOp,
+    T29 = NoOp,
+    T30 = NoOp,
+    T31 = NoOp,
 >(
     PhantomData<(
         T0,
@@ -237,6 +253,22 @@ pub struct And<
         T13,
         T14,
         T15,
+        T16,
+        T17,
+        T18,
+        T19,
+        T20,
+        T21,
+        T22,
+        T23,
+        T24,
+        T25,
+        T26,
+        T27,
+        T28,
+        T29,
+        T30,
+        T31,
     )>,
 );
 
@@ -258,6 +290,22 @@ impl<
         T13: ParseImpl<I, A>,
         T14: ParseImpl<I, A>,
         T15: ParseImpl<I, A>,
+        T16: ParseImpl<I, A>,
+        T17: ParseImpl<I, A>,
+        T18: ParseImpl<I, A>,
+        T19: ParseImpl<I, A>,
+        T20: ParseImpl<I, A>,
+        T21: ParseImpl<I, A>,
+        T22: ParseImpl<I, A>,
+        T23: ParseImpl<I, A>,
+        T24: ParseImpl<I, A>,
+        T25: ParseImpl<I, A>,
+        T26: ParseImpl<I, A>,
+        T27: ParseImpl<I, A>,
+        T28: ParseImpl<I, A>,
+        T29: ParseImpl<I, A>,
+        T30: ParseImpl<I, A>,
+        T31: ParseImpl<I, A>,
         C0: Concat<T1::Output, Output = C1>,
         C1: Concat<T2::Output, Output = C2>,
         C2: Concat<T3::Output, Output = C3>,
@@ -273,12 +321,61 @@ impl<
         C12: Concat<T13::Output, Output = C13>,
         C13: Concat<T14::Output, Output = C14>,
         C14: Concat<T15::Output, Output = C15>,
-        C15,
+        C15: Concat<T16::Output, Output = C16>,
+        C16: Concat<T17::Output, Output = C17>,
+        C17: Concat<T18::Output, Output = C18>,
+        C18: Concat<T19::Output, Output = C19>,
+        C19: Concat<T20::Output, Output = C20>,
+        C20: Concat<T21::Output, Output = C21>,
+        C21: Concat<T22::Output, Output = C22>,
+        C22: Concat<T23::Output, Output = C23>,
+        C23: Concat<T24::Output, Output = C24>,
+        C24: Concat<T25::Output, Output = C25>,
+        C25: Concat<T26::Output, Output = C26>,
+        C26: Concat<T27::Output, Output = C27>,
+        C27: Concat<T28::Output, Output = C28>,
+        C28: Concat<T29::Output, Output = C29>,
+        C29: Concat<T30::Output, Output = C30>,
+        C30: Concat<T31::Output, Output = C31>,
+        C31,
         A,
     > ParseImpl<I, A>
-    for And<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+    for And<
+        T0,
+        T1,
+        T2,
+        T3,
+        T4,
+        T5,
+        T6,
+        T7,
+        T8,
+        T9,
+        T10,
+        T11,
+        T12,
+        T13,
+        T14,
+        T15,
+        T16,
+        T17,
+        T18,
+        T19,
+        T20,
+        T21,
+        T22,
+        T23,
+        T24,
+        T25,
+        T26,
+        T27,
+        T28,
+        T29,
+        T30,
+        T31,
+    >
 {
-    type Output = C15;
+    type Output = C31;
     impl_parse!(parse, _await, |input: I, arg: A| {
         let r = parse!(T0, input, arg)?;
         macro_rules! impl_concat {
@@ -286,8 +383,11 @@ impl<
                 let $r = $r.concat(parse!($t, input, arg)?);
             )*};
         }
-        impl_concat!(r, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14);
-        let r = r.concat(parse!(T15, input, arg)?);
+        impl_concat!(
+            r, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18,
+            T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30,
+        );
+        let r = r.concat(parse!(T31, input, arg)?);
         Ok(r)
     });
 }
@@ -310,6 +410,22 @@ pub struct Or<
     T13 = Never<T0>,
     T14 = Never<T0>,
     T15 = Never<T0>,
+    T16 = Never<T0>,
+    T17 = Never<T0>,
+    T18 = Never<T0>,
+    T19 = Never<T0>,
+    T20 = Never<T0>,
+    T21 = Never<T0>,
+    T22 = Never<T0>,
+    T23 = Never<T0>,
+    T24 = Never<T0>,
+    T25 = Never<T0>,
+    T26 = Never<T0>,
+    T27 = Never<T0>,
+    T28 = Never<T0>,
+    T29 = Never<T0>,
+    T30 = Never<T0>,
+    T31 = Never<T0>,
 >(
     PhantomData<(
         T0,
@@ -328,6 +444,22 @@ pub struct Or<
         T13,
         T14,
         T15,
+        T16,
+        T17,
+        T18,
+        T19,
+        T20,
+        T21,
+        T22,
+        T23,
+        T24,
+        T25,
+        T26,
+        T27,
+        T28,
+        T29,
+        T30,
+        T31,
     )>,
 );
 
@@ -348,10 +480,60 @@ impl<
         T13: ParseImpl<I, A, Output = O>,
         T14: ParseImpl<I, A, Output = O>,
         T15: ParseImpl<I, A, Output = O>,
+        T16: ParseImpl<I, A, Output = O>,
+        T17: ParseImpl<I, A, Output = O>,
+        T18: ParseImpl<I, A, Output = O>,
+        T19: ParseImpl<I, A, Output = O>,
+        T20: ParseImpl<I, A, Output = O>,
+        T21: ParseImpl<I, A, Output = O>,
+        T22: ParseImpl<I, A, Output = O>,
+        T23: ParseImpl<I, A, Output = O>,
+        T24: ParseImpl<I, A, Output = O>,
+        T25: ParseImpl<I, A, Output = O>,
+        T26: ParseImpl<I, A, Output = O>,
+        T27: ParseImpl<I, A, Output = O>,
+        T28: ParseImpl<I, A, Output = O>,
+        T29: ParseImpl<I, A, Output = O>,
+        T30: ParseImpl<I, A, Output = O>,
+        T31: ParseImpl<I, A, Output = O>,
         I,
         O,
         A,
-    > ParseImpl<I, A> for Or<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+    > ParseImpl<I, A>
+    for Or<
+        T0,
+        T1,
+        T2,
+        T3,
+        T4,
+        T5,
+        T6,
+        T7,
+        T8,
+        T9,
+        T10,
+        T11,
+        T12,
+        T13,
+        T14,
+        T15,
+        T16,
+        T17,
+        T18,
+        T19,
+        T20,
+        T21,
+        T22,
+        T23,
+        T24,
+        T25,
+        T26,
+        T27,
+        T28,
+        T29,
+        T30,
+        T31,
+    >
 {
     type Output = O;
     impl_parse!(parse, _await, |input: I, arg: A| {
@@ -371,10 +553,13 @@ impl<
                 }
             )*};
         }
-        impl_or!(input, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14);
+        impl_or!(
+            input, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17,
+            T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30,
+        );
 
         let mut fork = input.fork();
-        match parse!(T15, &mut fork, arg) {
+        match parse!(T31, &mut fork, arg) {
             Ok(item) => {
                 fork.join();
                 return Ok(item);
@@ -572,106 +757,6 @@ impl<I, T: ParseImpl<I, A>, N: Const<Type = &'static str>, A> ParseImpl<I, A> fo
                 e
             }
         }));
-}
-
-pub struct ArgOut<M = NoOp>(PhantomData<M>);
-
-impl<I, A: Clone, M: Mapper<(A,), (), Output = O>, O> ParseImpl<I, A> for ArgOut<M> {
-    type Output = (O,);
-    impl_parse!(parse, _await, |_input: I, arg: A| Ok((M::map(
-        (arg.clone(),),
-        &()
-    ),)));
-}
-
-#[allow(clippy::type_complexity)]
-pub struct Chain<
-    T0 = NoOp<((),)>,
-    T1 = ArgOut,
-    T2 = ArgOut,
-    T3 = ArgOut,
-    T4 = ArgOut,
-    T5 = ArgOut,
-    T6 = ArgOut,
-    T7 = ArgOut,
-    T8 = ArgOut,
-    T9 = ArgOut,
-    T10 = ArgOut,
-    T11 = ArgOut,
-    T12 = ArgOut,
-    T13 = ArgOut,
-    T14 = ArgOut,
-    T15 = ArgOut,
->(
-    PhantomData<(
-        T0,
-        T1,
-        T2,
-        T3,
-        T4,
-        T5,
-        T6,
-        T7,
-        T8,
-        T9,
-        T10,
-        T11,
-        T12,
-        T13,
-        T14,
-        T15,
-    )>,
-);
-
-impl<
-        I,
-        T0: ParseImpl<I, A0, Output = (A1,)>,
-        T1: ParseImpl<I, A1, Output = (A2,)>,
-        T2: ParseImpl<I, A2, Output = (A3,)>,
-        T3: ParseImpl<I, A3, Output = (A4,)>,
-        T4: ParseImpl<I, A4, Output = (A5,)>,
-        T5: ParseImpl<I, A5, Output = (A6,)>,
-        T6: ParseImpl<I, A6, Output = (A7,)>,
-        T7: ParseImpl<I, A7, Output = (A8,)>,
-        T8: ParseImpl<I, A8, Output = (A9,)>,
-        T9: ParseImpl<I, A9, Output = (A10,)>,
-        T10: ParseImpl<I, A10, Output = (A11,)>,
-        T11: ParseImpl<I, A11, Output = (A12,)>,
-        T12: ParseImpl<I, A12, Output = (A13,)>,
-        T13: ParseImpl<I, A13, Output = (A14,)>,
-        T14: ParseImpl<I, A14, Output = (A15,)>,
-        T15: ParseImpl<I, A15, Output = (A16,)>,
-        A0,
-        A1,
-        A2,
-        A3,
-        A4,
-        A5,
-        A6,
-        A7,
-        A8,
-        A9,
-        A10,
-        A11,
-        A12,
-        A13,
-        A14,
-        A15,
-        A16,
-    > ParseImpl<I, A0>
-    for Chain<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
-{
-    type Output = (A16,);
-    impl_parse!(parse, _await, |input: I, arg: A0| {
-        macro_rules! impl_chain {
-            ($r:ident,$($t:ty),*$(,)?) => {$(
-                let ($r,) = parse!($t, input, &$r)?;
-            )*};
-        }
-        let r = arg;
-        impl_chain!(r, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15);
-        Ok((r,))
-    });
 }
 
 pub struct Peek<T>(PhantomData<T>);
