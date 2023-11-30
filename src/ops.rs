@@ -196,9 +196,23 @@ impl<T, A> Mapper<(T,), A> for NoOp {
     }
 }
 
+impl<I, A, T> Predicate<I, A> for NoOp<T> {
+    #[inline(always)]
+    fn is(_: &I, _: &A) -> bool {
+        true
+    }
+}
+
 impl<I, O, T: ParseImpl<I, A, Output = O>, A> ParseImpl<I, A> for Never<T> {
     type Output = O;
     impl_parse!(parse, _await, |__: I, _arg: A| Err(Error::Mismatch));
+}
+
+impl<I, A, T> Predicate<I, A> for Never<T> {
+    #[inline(always)]
+    fn is(_: &I, _: &A) -> bool {
+        false
+    }
 }
 
 #[allow(clippy::type_complexity)]
@@ -392,6 +406,91 @@ impl<
     });
 }
 
+impl<
+        I,
+        T0: Predicate<I, A>,
+        T1: Predicate<I, A>,
+        T2: Predicate<I, A>,
+        T3: Predicate<I, A>,
+        T4: Predicate<I, A>,
+        T5: Predicate<I, A>,
+        T6: Predicate<I, A>,
+        T7: Predicate<I, A>,
+        T8: Predicate<I, A>,
+        T9: Predicate<I, A>,
+        T10: Predicate<I, A>,
+        T11: Predicate<I, A>,
+        T12: Predicate<I, A>,
+        T13: Predicate<I, A>,
+        T14: Predicate<I, A>,
+        T15: Predicate<I, A>,
+        T16: Predicate<I, A>,
+        T17: Predicate<I, A>,
+        T18: Predicate<I, A>,
+        T19: Predicate<I, A>,
+        T20: Predicate<I, A>,
+        T21: Predicate<I, A>,
+        T22: Predicate<I, A>,
+        T23: Predicate<I, A>,
+        T24: Predicate<I, A>,
+        T25: Predicate<I, A>,
+        T26: Predicate<I, A>,
+        T27: Predicate<I, A>,
+        T28: Predicate<I, A>,
+        T29: Predicate<I, A>,
+        T30: Predicate<I, A>,
+        T31: Predicate<I, A>,
+        A,
+    > Predicate<I, A>
+    for And<
+        T0,
+        T1,
+        T2,
+        T3,
+        T4,
+        T5,
+        T6,
+        T7,
+        T8,
+        T9,
+        T10,
+        T11,
+        T12,
+        T13,
+        T14,
+        T15,
+        T16,
+        T17,
+        T18,
+        T19,
+        T20,
+        T21,
+        T22,
+        T23,
+        T24,
+        T25,
+        T26,
+        T27,
+        T28,
+        T29,
+        T30,
+        T31,
+    >
+{
+    #[inline(always)]
+    fn is(v: &I, a: &A) -> bool {
+        macro_rules! impl_is {
+            ($($t:ty),*$(,)?) => {
+                $(<$t>::is(v, a))&&*
+            };
+        }
+        impl_is!(
+            T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18,
+            T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31,
+        )
+    }
+}
+
 #[allow(clippy::type_complexity)]
 pub struct Or<
     T0 = Never<NoOp>,
@@ -573,6 +672,91 @@ impl<
 
         Err(Error::Mismatch)
     });
+}
+
+impl<
+        I,
+        T0: Predicate<I, A>,
+        T1: Predicate<I, A>,
+        T2: Predicate<I, A>,
+        T3: Predicate<I, A>,
+        T4: Predicate<I, A>,
+        T5: Predicate<I, A>,
+        T6: Predicate<I, A>,
+        T7: Predicate<I, A>,
+        T8: Predicate<I, A>,
+        T9: Predicate<I, A>,
+        T10: Predicate<I, A>,
+        T11: Predicate<I, A>,
+        T12: Predicate<I, A>,
+        T13: Predicate<I, A>,
+        T14: Predicate<I, A>,
+        T15: Predicate<I, A>,
+        T16: Predicate<I, A>,
+        T17: Predicate<I, A>,
+        T18: Predicate<I, A>,
+        T19: Predicate<I, A>,
+        T20: Predicate<I, A>,
+        T21: Predicate<I, A>,
+        T22: Predicate<I, A>,
+        T23: Predicate<I, A>,
+        T24: Predicate<I, A>,
+        T25: Predicate<I, A>,
+        T26: Predicate<I, A>,
+        T27: Predicate<I, A>,
+        T28: Predicate<I, A>,
+        T29: Predicate<I, A>,
+        T30: Predicate<I, A>,
+        T31: Predicate<I, A>,
+        A,
+    > Predicate<I, A>
+    for Or<
+        T0,
+        T1,
+        T2,
+        T3,
+        T4,
+        T5,
+        T6,
+        T7,
+        T8,
+        T9,
+        T10,
+        T11,
+        T12,
+        T13,
+        T14,
+        T15,
+        T16,
+        T17,
+        T18,
+        T19,
+        T20,
+        T21,
+        T22,
+        T23,
+        T24,
+        T25,
+        T26,
+        T27,
+        T28,
+        T29,
+        T30,
+        T31,
+    >
+{
+    #[inline(always)]
+    fn is(v: &I, a: &A) -> bool {
+        macro_rules! impl_is {
+            ($($t:ty),*$(,)?) => {
+                $(<$t>::is(v, a))||*
+            };
+        }
+        impl_is!(
+            T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18,
+            T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31,
+        )
+    }
 }
 
 pub struct Repeat<T, const MIN: usize = 0, const MAX: usize = { usize::MAX }>(PhantomData<T>);
