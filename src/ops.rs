@@ -3,7 +3,7 @@ use crate::{
     Concat, Error, HardError, Result, SourceBase,
 };
 use alloc::vec::Vec;
-use core::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData, ops::Range};
 
 pub trait Const {
     type Type;
@@ -11,27 +11,27 @@ pub trait Const {
 }
 
 pub trait Predicate<T, A> {
-    fn is(v: &T, a: A) -> bool;
+    fn is(v: &T, a: &A) -> bool;
 }
 
-pub trait Mapper<T> {
+pub trait Mapper<T, A> {
     type Output;
-    fn map(v: T) -> Self::Output;
+    fn map(v: T, a: &A) -> Self::Output;
 }
 
 pub struct Define<T>(PhantomData<T>);
 
-impl<T, U: Mapper<T>> Mapper<T> for Define<U> {
+impl<T, U: Mapper<T, A>, A> Mapper<T, A> for Define<U> {
     type Output = U::Output;
     #[inline(always)]
-    fn map(v: T) -> Self::Output {
-        U::map(v)
+    fn map(v: T, a: &A) -> Self::Output {
+        U::map(v, a)
     }
 }
 
 impl<T, U: Predicate<T, A>, A> Predicate<T, A> for Define<U> {
     #[inline(always)]
-    fn is(v: &T, arg: A) -> bool {
+    fn is(v: &T, arg: &A) -> bool {
         U::is(v, arg)
     }
 }
@@ -45,7 +45,7 @@ impl<I, U: ParseImpl<I, A>, A> ParseImpl<I, A> for Define<U> {
     type Output = U::Output;
 
     #[inline(always)]
-    fn parse<S: crate::Source<Item = I>>(input: &mut S, arg: A) -> Result<Self::Output> {
+    fn parse<S: crate::Source<Item = I>>(input: &mut S, arg: &A) -> Result<Self::Output> {
         U::parse(input, arg)
     }
 
@@ -53,7 +53,7 @@ impl<I, U: ParseImpl<I, A>, A> ParseImpl<I, A> for Define<U> {
     #[inline(always)]
     async fn parse_async<S: crate::AsyncSource<Item = I>>(
         input: &mut S,
-        arg: A,
+        arg: &A,
     ) -> Result<Self::Output> {
         U::parse_async(input, arg).await
     }
@@ -78,7 +78,7 @@ impl<I: Clone, P: Predicate<I, A>, A> ParseImpl<I, A> for Is<P> {
 
 impl<I, P: Predicate<I, A>, A> Predicate<I, A> for Is<P> {
     #[inline(always)]
-    fn is(v: &I, arg: A) -> bool {
+    fn is(v: &I, arg: &A) -> bool {
         P::is(v, arg)
     }
 }
@@ -89,7 +89,7 @@ pub struct Not<T>(PhantomData<T>);
 
 impl<I, T: Predicate<I, A>, A> Predicate<I, A> for Not<T> {
     #[inline(always)]
-    fn is(v: &I, arg: A) -> bool {
+    fn is(v: &I, arg: &A) -> bool {
         !T::is(v, arg)
     }
 }
@@ -130,7 +130,7 @@ impl<C: Const<Type = G>, G: IntoIterator<Item = T>, T: Borrow<U>, U: PartialEq, 
     for AnyOf<C>
 {
     #[inline(always)]
-    fn is(v: &U, _: A) -> bool {
+    fn is(v: &U, _: &A) -> bool {
         C::VALUE.into_iter().any(|x| v == x.borrow())
     }
 }
@@ -142,7 +142,7 @@ impl<C: Const<Type = G>, G: IntoIterator<Item = T>, T: Borrow<U>, U: PartialEq +
     impl_parse!(parse, _await, |input: U, _arg: A| parse!(
         Is::<Self>,
         input,
-        ()
+        &()
     ));
 }
 
@@ -188,10 +188,10 @@ impl<I, A, T: Default> ParseImpl<I, A> for NoOp<T> {
     impl_parse!(parse, _await, |__: I, _arg: A| Ok(T::default()));
 }
 
-impl<T> Mapper<(T,)> for NoOp {
+impl<T, A> Mapper<(T,), A> for NoOp {
     type Output = T;
     #[inline(always)]
-    fn map((v,): (T,)) -> Self::Output {
+    fn map((v,): (T,), _: &A) -> Self::Output {
         v
     }
 }
@@ -274,16 +274,16 @@ impl<
         C13: Concat<T14::Output, Output = C14>,
         C14: Concat<T15::Output, Output = C15>,
         C15,
-        A: Clone,
+        A,
     > ParseImpl<I, A>
     for And<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 {
     type Output = C15;
     impl_parse!(parse, _await, |input: I, arg: A| {
-        let r = parse!(T0, input, arg.clone())?;
+        let r = parse!(T0, input, arg)?;
         macro_rules! impl_concat {
             ($r:ident, $($t:ty),*$(,)?) => {$(
-                let $r = $r.concat(parse!($t, input, arg.clone())?);
+                let $r = $r.concat(parse!($t, input, arg)?);
             )*};
         }
         impl_concat!(r, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14);
@@ -350,7 +350,7 @@ impl<
         T15: ParseImpl<I, A, Output = O>,
         I,
         O,
-        A: Clone,
+        A,
     > ParseImpl<I, A> for Or<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 {
     type Output = O;
@@ -358,7 +358,7 @@ impl<
         macro_rules! impl_or {
             ($i:expr, $($t:ty),*$(,)?) => {$(
                 let mut fork = $i.fork();
-                match parse!($t, &mut fork, arg.clone()) {
+                match parse!($t, &mut fork, arg) {
                     Ok(item) => {
                         fork.join();
                         return Ok(item);
@@ -392,15 +392,15 @@ impl<
 
 pub struct Repeat<T, const MIN: usize = 0, const MAX: usize = { usize::MAX }>(PhantomData<T>);
 
-impl<I, T: ParseImpl<I, A, Output = (O,)>, O, A: Clone, const MIN: usize, const MAX: usize>
-    ParseImpl<I, A> for Repeat<T, MIN, MAX>
+impl<I, T: ParseImpl<I, A, Output = (O,)>, O, A, const MIN: usize, const MAX: usize> ParseImpl<I, A>
+    for Repeat<T, MIN, MAX>
 {
     type Output = (Vec<O>,);
     impl_parse!(parse, _await, |input: I, arg: A| {
         let mut result = Vec::new();
         let mut le = None;
         for _ in 0..MAX {
-            match parse!(T, input, arg.clone()) {
+            match parse!(T, input, arg) {
                 Ok((item,)) => result.push(item),
                 Err(e @ Error::Hard(_)) => {
                     return Err(e);
@@ -441,7 +441,7 @@ impl<
         O,
         P: ParseImpl<I, A, Output = (PO,)>,
         PO,
-        A: Clone,
+        A,
         const MIN: usize,
         const MAX: usize,
     > ParseImpl<I, A> for Punctuated<T, P, MIN, MAX>
@@ -453,7 +453,7 @@ impl<
         let mut le = None;
 
         'matching: {
-            match parse!(T, input, arg.clone()) {
+            match parse!(T, input, arg) {
                 Ok((item,)) => result.push(item),
                 Err(e @ Error::Hard(_)) => {
                     return Err(e);
@@ -466,7 +466,7 @@ impl<
 
             for _ in 1..MAX {
                 let mut input = input.fork();
-                match parse!(P, &mut input, arg.clone()) {
+                match parse!(P, &mut input, arg) {
                     Ok((item,)) => puncts.push(item),
                     Err(e @ Error::Hard(_)) => {
                         return Err(e);
@@ -477,7 +477,7 @@ impl<
                     }
                 }
 
-                match parse!(T, &mut input, arg.clone()) {
+                match parse!(T, &mut input, arg) {
                     Ok((item,)) => {
                         result.push(item);
                         input.join();
@@ -506,31 +506,34 @@ pub struct TryMap<P, M>(PhantomData<(P, M)>);
 
 pub struct IsMap<P, M>(PhantomData<(P, M)>);
 
-impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, Output = U>, T, U, A> ParseImpl<I, A>
+impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, A, Output = U>, T, U, A> ParseImpl<I, A>
     for Map<P, M>
 {
     type Output = (U,);
-    impl_parse!(parse, _await, |input: I, arg: A| Ok((M::map(parse!(
-        P, input, arg
-    )?),)));
+    impl_parse!(parse, _await, |input: I, arg: A| Ok((M::map(
+        parse!(P, input, arg)?,
+        arg
+    ),)));
 }
 
-impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, Output = Result<U>>, T, U, A> ParseImpl<I, A>
-    for TryMap<P, M>
+impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, A, Output = Result<U>>, T, U, A>
+    ParseImpl<I, A> for TryMap<P, M>
 {
     type Output = (U,);
-    impl_parse!(parse, _await, |input: I, arg: A| Ok((M::map(parse!(
-        P, input, arg
-    )?)?,)));
+    impl_parse!(parse, _await, |input: I, arg: A| Ok((M::map(
+        parse!(P, input, arg)?,
+        arg
+    )?,)));
 }
 
-impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, Output = Option<U>>, T, U, A> ParseImpl<I, A>
-    for IsMap<P, M>
+impl<I, P: ParseImpl<I, A, Output = T>, M: Mapper<T, A, Output = Option<U>>, T, U, A>
+    ParseImpl<I, A> for IsMap<P, M>
 {
     type Output = (U,);
-    impl_parse!(parse, _await, |input: I, arg: A| Ok((M::map(parse!(
-        P, input, arg
-    )?)
+    impl_parse!(parse, _await, |input: I, arg: A| Ok((M::map(
+        parse!(P, input, arg)?,
+        arg
+    )
     .ok_or(Error::Mismatch)?,)));
 }
 
@@ -573,9 +576,12 @@ impl<I, T: ParseImpl<I, A>, N: Const<Type = &'static str>, A> ParseImpl<I, A> fo
 
 pub struct ArgOut<M = NoOp>(PhantomData<M>);
 
-impl<I, A, M: Mapper<(A,), Output = O>, O> ParseImpl<I, A> for ArgOut<M> {
+impl<I, A: Clone, M: Mapper<(A,), (), Output = O>, O> ParseImpl<I, A> for ArgOut<M> {
     type Output = (O,);
-    impl_parse!(parse, _await, |_input: I, arg: A| Ok((M::map((arg,)),)));
+    impl_parse!(parse, _await, |_input: I, arg: A| Ok((M::map(
+        (arg.clone(),),
+        &()
+    ),)));
 }
 
 #[allow(clippy::type_complexity)]
@@ -659,7 +665,7 @@ impl<
     impl_parse!(parse, _await, |input: I, arg: A0| {
         macro_rules! impl_chain {
             ($r:ident,$($t:ty),*$(,)?) => {$(
-                let ($r,) = parse!($t, input, $r)?;
+                let ($r,) = parse!($t, input, &$r)?;
             )*};
         }
         let r = arg;
@@ -690,6 +696,30 @@ where
 
     impl_parse!(parse, _await, |input: I, arg: A0| {
         let r = parse!(T0, input, arg)?;
-        Ok(r.clone().concat(parse!(T1, input, r.0)?))
+        Ok(r.clone().concat(parse!(T1, input, &r.0)?))
     });
+}
+
+pub struct MapRange<T, M = ConcatArg>(PhantomData<(T, M)>);
+
+impl<I, A, T: ParseImpl<I, A>, M: Mapper<T::Output, Range<usize>>> ParseImpl<I, A>
+    for MapRange<T, M>
+{
+    type Output = (M::Output,);
+    impl_parse!(parse, _await, |input: I, arg: A| {
+        let start = input.position();
+        let result = parse!(T, input, arg)?;
+        let end = input.position();
+        Ok((M::map(result, &(start..end)),))
+    });
+}
+
+pub struct ConcatArg;
+
+impl<T: Concat<(A,)>, A: Clone> Mapper<T, A> for ConcatArg {
+    type Output = T::Output;
+    #[inline(always)]
+    fn map(v: T, a: &A) -> Self::Output {
+        v.concat((a.clone(),))
+    }
 }

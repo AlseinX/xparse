@@ -129,7 +129,7 @@ type Object = Map<
                     Map<
                         And<Spaces, PRawString, Spaces, Discard<Colomn>, PValue>,
                         {
-                            fn map(k: String, v: Value) -> (String, Value) {
+                            fn map<K, V>(k: K, v: V) -> (K, V) {
                                 (k, v)
                             }
                         },

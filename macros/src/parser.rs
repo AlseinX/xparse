@@ -156,12 +156,7 @@ pub fn handle(
             attrs: Default::default(),
             ident: arg,
             colon_token: Some(Token![:](span)),
-            bounds: Punctuated::from_iter([TypeParamBound::Trait(TraitBound {
-                paren_token: None,
-                modifier: TraitBoundModifier::None,
-                lifetimes: None,
-                path: Ident::new("Clone", span).into(),
-            })]),
+            bounds: Default::default(),
             eq_token: Default::default(),
             default: Default::default(),
         }));
@@ -205,7 +200,7 @@ pub fn handle(
 
     let f = quote! {
         #[inline(always)]
-        fn parse<#s: ::xparse::Source<Item = #input>>(input: &mut #s, arg: #arg) -> Result<Self::Output> {
+        fn parse<#s: ::xparse::Source<Item = #input>>(input: &mut #s, arg: &#arg) -> Result<Self::Output> {
             <#ty as ::xparse::parse::ParseImpl<#input, #arg>>::parse(input, arg)
         }
     };
@@ -214,7 +209,7 @@ pub fn handle(
     let f = quote! {
         #f
         #[inline(always)]
-        async fn parse_async<S: ::xparse::AsyncSource<Item = #input>>(input: &mut S, arg: #arg) -> Result<Self::Output> {
+        async fn parse_async<S: ::xparse::AsyncSource<Item = #input>>(input: &mut S, arg: &#arg) -> Result<Self::Output> {
             Box::pin(<#ty as ::xparse::parse::ParseImpl<#input, #arg>>::parse_async(input, arg)).await
         }
     };
@@ -226,24 +221,25 @@ pub fn handle(
             type Output = #output;
             #f
         }
+
         impl<#i, #a> ::xparse::ops::Predicate<#i, #a> for #ident
         where
             #ty: ::xparse::ops::Predicate<#i, #a>
         {
             #[inline(always)]
-            fn is(v: &#i, arg: #a) -> bool {
+            fn is(v: &#i, arg: &#a) -> bool {
                 <#ty as ::xparse::ops::Predicate<#i, #a>>::is(v, arg)
             }
         }
 
-        impl<#i> ::xparse::ops::Mapper<#i> for #ident
+        impl<#i, #a> ::xparse::ops::Mapper<#i, #a> for #ident
         where
-            #ty: ::xparse::ops::Mapper<#i>
+            #ty: ::xparse::ops::Mapper<#i, #a>
         {
-            type Output = <#ty as ::xparse::ops::Mapper<#i>>::Output;
+            type Output = <#ty as ::xparse::ops::Mapper<#i, #a>>::Output;
             #[inline(always)]
-            fn map(v: #i) -> Self::Output {
-                <#ty as ::xparse::ops::Mapper<#i>>::map(v)
+            fn map(v: #i, a: &#a) -> Self::Output {
+                <#ty as ::xparse::ops::Mapper<#i, #a>>::map(v, a)
             }
         }
     })

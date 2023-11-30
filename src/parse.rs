@@ -16,12 +16,12 @@ pub trait Parse<I> {
 
 pub trait ParseImpl<I, A> {
     type Output;
-    fn parse<S: Source<Item = I>>(input: &mut S, arg: A) -> Result<Self::Output>;
+    fn parse<S: Source<Item = I>>(input: &mut S, arg: &A) -> Result<Self::Output>;
 
     #[cfg(feature = "async")]
     fn parse_async<S: AsyncSource<Item = I>>(
         input: &mut S,
-        arg: A,
+        arg: &A,
     ) -> impl Future<Output = Result<Self::Output>>;
 }
 
@@ -32,13 +32,13 @@ where
     type Output = O;
     #[inline(always)]
     fn parse<S: Source<Item = I>>(input: &mut S) -> Result<Self::Output> {
-        Ok(<T as ParseImpl<I, ()>>::parse(input, ())?.into_item())
+        Ok(<T as ParseImpl<I, ()>>::parse(input, &())?.into_item())
     }
 
     #[cfg(feature = "async")]
     #[inline(always)]
     async fn parse_async<S: AsyncSource<Item = I>>(input: &mut S) -> Result<Self::Output> {
-        Ok(<T as ParseImpl<I, ()>>::parse_async(input, ())
+        Ok(<T as ParseImpl<I, ()>>::parse_async(input, &())
             .await?
             .into_item())
     }
@@ -61,7 +61,7 @@ pub(crate) mod macros {
     macro_rules! impl_parse {
         ($pa:ident,$aw:ident,|$s:ident:$i:ty,$av:ident:$at:ty|$b:expr) => {
             #[inline(always)]
-            fn parse<S: $crate::Source<Item = $i>>($s: &mut S, $av: $at) -> Result<Self::Output> {
+            fn parse<S: $crate::Source<Item = $i>>($s: &mut S, $av: &$at) -> Result<Self::Output> {
                 #[allow(unused_imports)]
                 use $crate::parse::macros::no_await as $aw;
                 #[allow(unused_imports)]
@@ -73,7 +73,7 @@ pub(crate) mod macros {
             #[inline(always)]
             async fn parse_async<S: $crate::AsyncSource<Item = $i>>(
                 $s: &mut S,
-                $av: $at,
+                $av: &$at,
             ) -> Result<Self::Output> {
                 #[allow(unused_imports)]
                 use $crate::parse::macros::has_await as $aw;
