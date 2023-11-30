@@ -210,7 +210,7 @@ fn handle_is(f: &mut ItemFn, ty_id: &Ident) -> Result<TokenStream> {
         let Some(FnArg::Typed(PatType { ty, .. })) = inputs.iter().nth(1) else {
             unreachable!()
         };
-        ty
+        extract_ref!(ty.as_ref())
     };
 
     let Generics {
