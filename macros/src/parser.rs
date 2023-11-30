@@ -200,7 +200,7 @@ pub fn handle(
 
     let f = quote! {
         #[inline(always)]
-        fn parse<#s: ::xparse::Source<Item = #input>>(input: &mut #s, arg: &#arg) -> Result<Self::Output> {
+        fn parse<#s: ::xparse::Source<Item = #input>>(input: &mut #s, arg: &#arg) -> ::xparse::Result<Self::Output> {
             <#ty as ::xparse::parse::ParseImpl<#input, #arg>>::parse(input, arg)
         }
     };
@@ -209,7 +209,7 @@ pub fn handle(
     let f = quote! {
         #f
         #[inline(always)]
-        async fn parse_async<S: ::xparse::AsyncSource<Item = #input>>(input: &mut S, arg: &#arg) -> Result<Self::Output> {
+        async fn parse_async<S: ::xparse::AsyncSource<Item = #input>>(input: &mut S, arg: &#arg) -> ::xparse::Result<Self::Output> {
             Box::pin(<#ty as ::xparse::parse::ParseImpl<#input, #arg>>::parse_async(input, arg)).await
         }
     };

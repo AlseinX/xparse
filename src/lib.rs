@@ -1,8 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 extern crate alloc;
 
-mod parse;
-
+pub mod parse;
 pub mod source;
 pub use parse::Parse;
 #[cfg(feature = "async")]
