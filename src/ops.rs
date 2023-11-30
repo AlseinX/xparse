@@ -723,3 +723,29 @@ impl<T: Concat<(A,)>, A: Clone> Mapper<T, A> for ConcatArg {
         v.concat((a.clone(),))
     }
 }
+
+pub struct Start;
+
+impl<I, A> ParseImpl<I, A> for Start {
+    type Output = ();
+    impl_parse!(parse, _await, |input: I, _arg: A| {
+        if input.position() == 0 {
+            Ok(())
+        } else {
+            Err(Error::Mismatch)
+        }
+    });
+}
+
+pub struct End;
+
+impl<I, A> ParseImpl<I, A> for End {
+    type Output = ();
+    impl_parse!(parse, _await, |input: I, _arg: A| {
+        if _await!(input.read(1))?.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::Mismatch)
+        }
+    });
+}
